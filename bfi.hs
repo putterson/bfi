@@ -2,6 +2,7 @@ import System.Environment
 import GHC.Word
 import Data.List
 import Text.Printf
+import Data.ByteString
 import Data.ByteString.Internal (w2c)
 import Data.ByteString.Internal (c2w)
 
@@ -12,14 +13,14 @@ main = do
 
 argV = do
     f <- getArgs
-    case (length f) of
-        0 -> getContents
-        1 -> readFile (head f)
+    case (genericLength f) of
+        0 -> Data.ByteString.getContents
+        1 -> Data.ByteString.readFile (Data.List.head f)
         _ -> do
             printf "Usage: 'bfi source.b' OR 'cat source.b | bfi'\n" 
-            return ""
+            return Data.ByteString.empty
 
-impl :: String -> IO ()
+impl :: ByteString -> IO ()
 impl str = do
     eval (initial str)
     return ()
@@ -30,8 +31,8 @@ getWord = do
 
 eval :: BFState -> IO ()
 eval state
-    | (iptr state) < genericLength (inst state)
-    =   case cur of
+    | (iptr state) < Data.ByteString.length (inst state)
+    =   case (w2c cur) of
             '+' ->  eval (bfInc (istate))
             '-' -> eval (bfDec (istate))
             '>' -> eval (bfIncP (istate))
@@ -53,7 +54,7 @@ eval state
         cur = curinst state
         istate = incstate state
 
-initial :: String -> BFState
+initial :: ByteString -> BFState
 initial str = BFState { lmem = [], rmem = [], iptr = 0, inst = str, lstack = []}
 
 
@@ -81,18 +82,18 @@ bfIn state = state
 
 bfBegL state
     | (memhead (rmem state)) == 0 =
-        bfJumpL   state { lstack = (iptr state) : (lstack state), iptr = (iptr state) + 1 } (length (lstack state))
+        bfJumpL   state { lstack = (iptr state) : (lstack state), iptr = (iptr state) + 1 } (genericLength (lstack state))
     | otherwise = state { lstack = (iptr state) : (lstack state), iptr = (iptr state) + 1 }
     
 bfEndL state
     | (memhead (rmem state)) == 0 =
         state { iptr = (iptr state) + 1, lstack = etail (lstack state)}
-    | otherwise = state { iptr = head (lstack state), lstack = etail (lstack state) }
+    | otherwise = state { iptr = Data.List.head (lstack state), lstack = etail (lstack state) }
 
 bfJumpL state len
     | genericLength (lstack state) - len == 0 = state
-    | cur == '[' = bfJumpL state { lstack = (iptr state) : (lstack state), iptr = (iptr state) + 1 } len
-    | cur == ']' = bfJumpL state { lstack = etail (lstack state), iptr = (iptr state) + 1 } len
+    | cur == (c2w '[') = bfJumpL state { lstack = (iptr state) : (lstack state), iptr = (iptr state) + 1 } len
+    | cur == (c2w ']') = bfJumpL state { lstack = etail (lstack state), iptr = (iptr state) + 1 } len
     | otherwise = bfJumpL istate len
     where
         cur = curinst state
@@ -113,7 +114,7 @@ etail (x:[]) = []
 etail (_:xs) = xs
     
 curinst state = 
-    ((inst state) `genericIndex` (iptr state))
+    ((inst state) `Data.ByteString.index` (iptr state))
 incstate state=
     (state { iptr = (iptr state) + 1 })
     
@@ -121,7 +122,7 @@ incstate state=
 data BFState = BFState {
     lmem :: [Word8],
     rmem :: [Word8],
-    iptr :: Integer,
-    inst :: String,
-    lstack :: [Integer]
+    iptr :: Int,
+    inst :: ByteString,
+    lstack :: [Int]
 }
