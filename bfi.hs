@@ -2,7 +2,7 @@ import System.Environment
 import GHC.Word
 import Data.List
 import Text.Printf
-import Data.ByteString
+import qualified Data.ByteString as B
 import Data.ByteString.Internal (w2c)
 import Data.ByteString.Internal (c2w)
 
@@ -14,13 +14,13 @@ main = do
 argV = do
     f <- getArgs
     case (genericLength f) of
-        0 -> Data.ByteString.getContents
-        1 -> Data.ByteString.readFile (Data.List.head f)
+        0 -> B.getContents
+        1 -> B.readFile (Data.List.head f)
         _ -> do
             printf "Usage: 'bfi source.b' OR 'cat source.b | bfi'\n" 
-            return Data.ByteString.empty
+            return B.empty
 
-impl :: ByteString -> IO ()
+impl :: B.ByteString -> IO ()
 impl str = do
     eval (initial str)
     return ()
@@ -31,7 +31,7 @@ getWord = do
 
 eval :: BFState -> IO ()
 eval state
-    | (iptr state) < Data.ByteString.length (inst state)
+    | (iptr state) < B.length (inst state)
     =   case (w2c cur) of
             '+' ->  eval (bfInc (istate))
             '-' -> eval (bfDec (istate))
@@ -54,7 +54,7 @@ eval state
         cur = curinst state
         istate = incstate state
 
-initial :: ByteString -> BFState
+initial :: B.ByteString -> BFState
 initial str = BFState { lmem = [], rmem = [], iptr = 0, inst = str, lstack = []}
 
 
@@ -114,7 +114,7 @@ etail (x:[]) = []
 etail (_:xs) = xs
     
 curinst state = 
-    ((inst state) `Data.ByteString.index` (iptr state))
+    ((inst state) `B.index` (iptr state))
 incstate state=
     (state { iptr = (iptr state) + 1 })
     
@@ -123,6 +123,6 @@ data BFState = BFState {
     lmem :: [Word8],
     rmem :: [Word8],
     iptr :: Int,
-    inst :: ByteString,
+    inst :: B.ByteString,
     lstack :: [Int]
 }
